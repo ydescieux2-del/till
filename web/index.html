@@ -139,12 +139,27 @@ function add(cls, text) {
 }
 const trace = t => add("trace", t);
 
-function speak(text) {
+let useTTS = false, audio = null;
+function stopSpeaking() {
+  if (audio) { audio.pause(); audio = null; }
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+}
+function browserSpeak(text) {
   if (!("speechSynthesis" in window)) return;
-  speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.rate = 1.04;
   speechSynthesis.speak(u);
+}
+async function speak(text) {
+  stopSpeaking();
+  if (!useTTS) return browserSpeak(text);
+  try {
+    const r = await fetch("/agent/tts", { method: "POST", headers: { "content-type": "application/json" },
+                                          body: JSON.stringify({ text }) });
+    if (!r.ok) throw new Error(r.status);
+    audio = new Audio(URL.createObjectURL(await r.blob()));
+    await audio.play();
+  } catch { browserSpeak(text); }
 }
 
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -152,7 +167,7 @@ const mic = document.getElementById("mic");
 if (!Rec) mic.style.display = "none";
 mic.onclick = () => {
   const rec = new Rec(); rec.lang = "en-US"; rec.interimResults = false;
-  mic.classList.add("on"); speechSynthesis.cancel();
+  mic.classList.add("on"); stopSpeaking();
   rec.onresult = e => ask(e.results[0][0].transcript);
   rec.onend = () => mic.classList.remove("on");
   rec.start();
@@ -265,6 +280,7 @@ async function offlineTurn(text) {
   try {
     const s = await (await fetch("/agent/status")).json();
     useLLM = s.llm && !new URLSearchParams(location.search).has("offline");
+    useTTS = s.tts && !new URLSearchParams(location.search).has("browservoice");
     document.getElementById("agent").textContent = useLLM ? s.model : "offline router";
   } catch { document.getElementById("agent").textContent = "offline router"; }
   document.getElementById("mode").textContent = useLLM

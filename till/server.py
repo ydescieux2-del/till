@@ -329,7 +329,26 @@ async def demo_page(request: Request) -> Response:
 
 @mcp.custom_route("/agent/status", methods=["GET"])
 async def agent_status(request: Request) -> Response:
-    return JSONResponse({"llm": bool(os.environ.get("ANTHROPIC_API_KEY")), "model": _agent_model()})
+    return JSONResponse({"llm": bool(os.environ.get("ANTHROPIC_API_KEY")), "model": _agent_model(),
+                         "tts": bool(os.environ.get("ELEVENLABS_API_KEY"))})
+
+
+@mcp.custom_route("/agent/tts", methods=["POST"])
+async def agent_tts(request: Request) -> Response:
+    """Speak Till's answer in an ElevenLabs voice. The key stays on the server; without one the page
+    falls back to the browser's built-in voice."""
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        return JSONResponse({"error": "ELEVENLABS_API_KEY not set"}, 503)
+    text = str((await request.json()).get("text", ""))[:1200]
+    voice = os.environ.get("TILL_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(f"https://api.elevenlabs.io/v1/text-to-speech/{voice}?output_format=mp3_44100_128",
+                              json={"text": text, "model_id": os.environ.get("TILL_TTS_MODEL", "eleven_flash_v2_5")},
+                              headers={"xi-api-key": key})
+    if r.status_code != 200:
+        return JSONResponse({"error": r.text[:300]}, r.status_code)
+    return Response(r.content, media_type="audio/mpeg")
 
 
 def _agent_model() -> str:
