@@ -363,7 +363,7 @@ async def agent_llm(request: Request) -> Response:
     if not key:
         return JSONResponse({"error": "ANTHROPIC_API_KEY not set; the page falls back to its offline router"}, 503)
     body = await request.json()
-    payload = {"model": _agent_model(), "max_tokens": 600, "system": str(body.get("system", ""))[:8000],
+    payload = {"model": _agent_model(), "max_tokens": 1024, "system": str(body.get("system", ""))[:8000],
                "messages": body.get("messages", [])[-24:], "tools": body.get("tools", [])}
     async with httpx.AsyncClient(timeout=60) as client:
         r = await client.post("https://api.anthropic.com/v1/messages", json=payload,
