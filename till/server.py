@@ -341,7 +341,7 @@ async def agent_tts(request: Request) -> Response:
     if not key:
         return JSONResponse({"error": "ELEVENLABS_API_KEY not set"}, 503)
     text = str((await request.json()).get("text", ""))[:1200]
-    voice = os.environ.get("TILL_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")
+    voice = os.environ.get("TILL_VOICE_ID", "cjVigY5qzO86Huf0OWal")
     async with httpx.AsyncClient(timeout=60) as client:
         r = await client.post(f"https://api.elevenlabs.io/v1/text-to-speech/{voice}?output_format=mp3_44100_128",
                               json={"text": text, "model_id": os.environ.get("TILL_TTS_MODEL", "eleven_flash_v2_5")},
